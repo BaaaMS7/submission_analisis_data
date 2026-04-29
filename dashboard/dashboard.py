@@ -4,19 +4,16 @@ import matplotlib.pyplot as plt
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+df = pd.read_csv(os.path.join(BASE_DIR, 'dashboard', 'main_data.csv'))
 
-DATA_PATH = os.path.join(BASE_DIR, 'data')
-DASHBOARD_PATH = os.path.join(BASE_DIR, 'dashboard')
+df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
 
-df = pd.read_csv(os.path.join(DASHBOARD_PATH, 'main_data.csv'))
-monthly_orders = pd.read_csv(os.path.join(DATA_PATH, 'monthly_orders.csv'))
-monthly_revenue = pd.read_csv(os.path.join(DATA_PATH, 'monthly_revenue.csv'))
-top_category = pd.read_csv(os.path.join(DATA_PATH, 'top_category.csv'))
-payment_dist = pd.read_csv(os.path.join(DATA_PATH, 'payment_dist.csv'))
+df['year'] = df['order_purchase_timestamp'].dt.year
+df['order_month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
 
-st.title("📊 E-Commerce Data Analysis Dashboard")
+st.title("📊 E-Commerce Dashboard Analysis")
 
-st.sidebar.header("Filter Data")
+st.sidebar.header("🔎 Filter Data")
 
 payment_filter = st.sidebar.multiselect(
     "Pilih Metode Pembayaran",
@@ -24,45 +21,76 @@ payment_filter = st.sidebar.multiselect(
     default=df['payment_type'].unique()
 )
 
-filtered_df = df[df['payment_type'].isin(payment_filter)]
+year_filter = st.sidebar.multiselect(
+    "Pilih Tahun",
+    options=sorted(df['year'].unique()),
+    default=sorted(df['year'].unique())
+)
 
-st.subheader("Key Metrics")
+filtered_df = df[
+    (df['payment_type'].isin(payment_filter)) &
+    (df['year'].isin(year_filter))
+]
+
+st.subheader("📌 Key Metrics")
 
 col1, col2 = st.columns(2)
 
 col1.metric("Total Orders", filtered_df['order_id'].nunique())
 col2.metric("Total Revenue", f"${filtered_df['price'].sum():,.0f}")
 
-st.subheader("🏆 Top Product Categories by Revenue")
+st.subheader("🏆 Top & Bottom Product Categories (Revenue)")
 
-top10 = top_category.head(10)
+category_revenue = filtered_df.groupby('product_category_name_english')['price'] \
+    .sum() \
+    .sort_values(ascending=False)
+
+top5 = category_revenue.head(5)
+bottom5 = category_revenue.tail(5)
 
 fig1, ax1 = plt.subplots()
-ax1.bar(top10['category'], top10['total_revenue'])
+ax1.bar(top5.index, top5.values)
 plt.xticks(rotation=45)
+ax1.set_title("Top 5 Categories")
 st.pyplot(fig1)
 
-st.subheader("Monthly Orders & Revenue Trend")
-
 fig2, ax2 = plt.subplots()
+ax2.bar(bottom5.index, bottom5.values)
+plt.xticks(rotation=45)
+ax2.set_title("Bottom 5 Categories")
+st.pyplot(fig2)
 
-ax2.plot(monthly_orders['month'], monthly_orders['total_orders'], label='Orders')
-ax2.plot(monthly_revenue['month'], monthly_revenue['total_revenue'], label='Revenue')
+st.subheader("📈 Monthly Orders & Revenue Trend")
+
+monthly = filtered_df.groupby('order_month').agg({
+    'order_id': 'nunique',
+    'price': 'sum'
+}).rename(columns={
+    'order_id': 'total_orders',
+    'price': 'total_revenue'
+}).reset_index()
+
+fig3, ax3 = plt.subplots()
+ax3.plot(monthly['order_month'], monthly['total_orders'], label='Orders')
+ax3.plot(monthly['order_month'], monthly['total_revenue'], label='Revenue')
 
 plt.xticks(rotation=45)
 plt.legend()
-st.pyplot(fig2)
-
-st.subheader("Payment Method Distribution")
-
-fig3, ax3 = plt.subplots()
-ax3.pie(payment_dist['count'], labels=payment_dist['payment_type'], autopct='%1.1f%%')
+ax3.set_title("Monthly Trend")
 st.pyplot(fig3)
 
-st.subheader("Insights")
+st.subheader("💳 Payment Method Distribution")
+
+payment_dist = filtered_df['payment_type'].value_counts()
+
+fig4, ax4 = plt.subplots()
+ax4.pie(payment_dist, labels=payment_dist.index, autopct='%1.1f%%')
+st.pyplot(fig4)
+
+st.subheader("📌 Insights")
 
 st.markdown("""
-- Kategori produk tertentu mendominasi revenue.
-- Tren penjualan menunjukkan fluktuasi bulanan.
-- Metode pembayaran didominasi oleh credit card.
+- Revenue terkonsentrasi pada beberapa kategori utama
+- Tren penjualan menunjukkan fluktuasi dari waktu ke waktu
+- Metode pembayaran memengaruhi distribusi transaksi
 """)
