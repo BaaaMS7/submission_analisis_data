@@ -26,7 +26,7 @@ payment_filter = st.sidebar.multiselect(
 
 filtered_df = df[df['payment_type'].isin(payment_filter)]
 
-st.subheader("📌 Key Metrics")
+st.subheader("Key Metrics")
 
 col1, col2 = st.columns(2)
 
@@ -42,7 +42,7 @@ ax1.bar(top10['category'], top10['total_revenue'])
 plt.xticks(rotation=45)
 st.pyplot(fig1)
 
-st.subheader("📈 Monthly Orders & Revenue Trend")
+st.subheader("Monthly Orders & Revenue Trend")
 
 fig2, ax2 = plt.subplots()
 
@@ -53,13 +53,13 @@ plt.xticks(rotation=45)
 plt.legend()
 st.pyplot(fig2)
 
-st.subheader("💳 Payment Method Distribution")
+st.subheader("Payment Method Distribution")
 
 fig3, ax3 = plt.subplots()
 ax3.pie(payment_dist['count'], labels=payment_dist['payment_type'], autopct='%1.1f%%')
 st.pyplot(fig3)
 
-st.subheader("📌 Insights")
+st.subheader("Insights")
 
 st.markdown("""
 - Kategori produk tertentu mendominasi revenue.
